@@ -223,6 +223,7 @@ namespace UnityEditor.UI
         SerializedProperty m_PreserveAspect;
         SerializedProperty m_UseSpriteMesh;
         SerializedProperty m_UiMode;
+        SerializedProperty m_isMajor;
         GUIContent m_SpriteContent;
         GUIContent m_SpriteTypeContent;
         GUIContent m_ClockwiseContent;
@@ -250,7 +251,7 @@ namespace UnityEditor.UI
             m_PreserveAspect = serializedObject.FindProperty("m_PreserveAspect");
             m_UseSpriteMesh = serializedObject.FindProperty("m_UseSpriteMesh");
             m_UiMode = serializedObject.FindProperty("m_UiMode");
-
+            m_isMajor = serializedObject.FindProperty("m_isMajor");
             m_ShowType = new AnimBool(m_Sprite.objectReferenceValue != null);
             m_ShowType.valueChanged.AddListener(Repaint);
 
@@ -305,7 +306,7 @@ namespace UnityEditor.UI
             NativeSizeButtonGUI();
 
             EditorGUILayout.PropertyField(m_UiMode);
-
+            EditorGUILayout.PropertyField(m_isMajor);
             serializedObject.ApplyModifiedProperties();
         }
 

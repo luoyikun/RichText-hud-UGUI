@@ -21,6 +21,8 @@ namespace UnityEngine.UI
     [ExecuteInEditMode]
     public class RichText : Text
     {
+        
+
         #region member
         public override string text
         {
@@ -55,6 +57,8 @@ namespace UnityEngine.UI
 
         [SerializeField]
         public Texture2D m_AtlasTexture;
+        [SerializeField]
+        public bool m_isMajor = false;
 
         [SerializeField]
         private string m_AtlasTexturePath;
@@ -162,6 +166,7 @@ namespace UnityEngine.UI
             }
         }
 
+
         private void DoMeshGeneration3D()
         {
             if (rectTransform != null && rectTransform.rect.width >= 0 && rectTransform.rect.height >= 0)
@@ -205,12 +210,34 @@ namespace UnityEngine.UI
             {
                 m_Material.SetTexture("_SpriteTex", m_AtlasTexture);
             }
-
+            //m_Material.SetInt("_IsText", 1);
             SetVerticesDirty();
+
+            //ChangeZTest();
 
             base.OnEnable();
         }
 
+
+        void ChangeZTest()
+        {
+            string propertyName = "_Ztest";
+            int ztestID = Shader.PropertyToID(propertyName);
+            var prop = new MaterialPropertyBlock();
+            var render = gameObject.GetOrAddComponent<MeshRenderer>();
+            render.GetPropertyBlock(prop);
+
+            //只能设置深度
+            if (m_isMajor == true)
+            {
+                prop.SetInt(ztestID, (int)UnityEngine.Rendering.CompareFunction.Always);
+            }
+            else
+            {
+                prop.SetInt(ztestID, (int)UnityEngine.Rendering.CompareFunction.LessEqual);
+            }
+            render.SetPropertyBlock(prop);
+        }
         protected override void OnDisable()
         {
             if (m_UiMode == ERichTextMode.ERTM_MergeText)
@@ -258,6 +285,7 @@ namespace UnityEngine.UI
         {
             m_parseText = text;
             parseSprite(m_parseText);
+            Debug.Log($"设置文本:{text}");
         }
 
         private void parseSprite(string strText)
@@ -521,8 +549,8 @@ namespace UnityEngine.UI
             IList<UIVertex> verts = cachedTextGenerator.verts;
             float unitsPerPixel = 1 / pixelsPerUnit;
             //Last 4 verts are always a new line...
-            int vertCount = verts.Count - 4;
-
+            //int vertCount = verts.Count - 4;
+            int vertCount = verts.Count;
             toFill.Clear();
 
             if (roundingOffset != Vector2.zero)

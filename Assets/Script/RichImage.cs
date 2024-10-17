@@ -8,9 +8,13 @@ using HuaHua;
 
 namespace UnityEngine.UI
 {
+    //继承Image
     [ExecuteInEditMode]
     public class RichImage : Image
     {
+        //辅助生成网格
+        //可以存储顶点的位置、颜色、UV、法线等信息，并提供方法来生成UI元素的Mesh网格
+        //辅助自定义UI元素的渲染：通过重写 OnPopulateMesh(VertexHelper vh) 方法
         [System.NonSerialized]
         private static readonly VertexHelper s_VertexHelper = new VertexHelper();
 
@@ -31,9 +35,31 @@ namespace UnityEngine.UI
         [System.NonSerialized]
         private Vector3 m_lastScale;
 
+        [SerializeField]
+        public bool m_isMajor = false;
         public Mesh Mesh()
         {
             return m_mesh;
+        }
+
+        void ChangeZTest()
+        {
+            string propertyName = "_Ztest";
+            int ztestID = Shader.PropertyToID(propertyName);
+            var prop = new MaterialPropertyBlock();
+            var render = gameObject.GetOrAddComponent<MeshRenderer>();
+            render.GetPropertyBlock(prop);
+
+            //只能设置深度,设置渲染队列会导致不合批
+            if (m_isMajor == true)
+            {
+                prop.SetInt(ztestID, (int)UnityEngine.Rendering.CompareFunction.Always);
+            }
+            else
+            {
+                prop.SetInt(ztestID, (int)UnityEngine.Rendering.CompareFunction.LessEqual);
+            }
+            render.SetPropertyBlock(prop);
         }
 
         protected override void UpdateGeometry()
@@ -91,6 +117,13 @@ namespace UnityEngine.UI
             v.uv0 = uv0;
             v.uv1 = new Vector2(0, 1.0f);
             v.color = this.color.linear;
+        }
+
+        protected override void OnEnable()
+        {
+            //ChangeZTest();
+
+            base.OnEnable();
         }
 
         private void GenerateSimpleSprite(VertexHelper toFill)

@@ -18,10 +18,14 @@ namespace UnityEngine.UI
         [System.NonSerialized]
         private Mesh m_mesh;
 
+        public bool m_isMajor = false; //是否是主角，主角最后渲染
         private bool m_dirty;
 
+        //生成出来的mesh不显示
         internal static readonly HideFlags MeshHideflags = HideFlags.DontSaveInBuild | HideFlags.DontSaveInEditor | HideFlags.HideInInspector;
 
+
+        //网格顺序
         struct MeshOrder
         {
             public Mesh mesh;
@@ -37,8 +41,14 @@ namespace UnityEngine.UI
 #endif
         }
 
+
+
+
         private void OnCombineMesh()
         {
+            //包含text，image控件
+            //名字板会运行时动态加新图，新字吗？伤害飘字动态出现。是否伤害飘字独立，且加入对象池复用
+            //每次只把名字板中子物体active = true 的合并网格
             RichText[] texts = GetComponentsInChildren<RichText>(false);
             RichImage[] images = GetComponentsInChildren<RichImage>(false);
             var meshCount = texts.Length + images.Length;
@@ -55,6 +65,7 @@ namespace UnityEngine.UI
                 return;
             }
 
+            //创建mesh
             if (m_meshRender == null)
             {
                 m_meshRender = gameObject.GetOrAddComponent<MeshRenderer>();
@@ -72,6 +83,7 @@ namespace UnityEngine.UI
 
             var meshes = ListPool<MeshOrder>.Get();
 
+            //父物体，世界控件到局部空间的转换矩阵
             var worldToLocalMatrix = this.transform.worldToLocalMatrix;
             for (int i = 0; i < images.Length; ++i)
             {
@@ -90,11 +102,12 @@ namespace UnityEngine.UI
 
                 var meshOrder = new MeshOrder();
                 meshOrder.mesh = mesh;
+                //b的局部空间转世界，再转为a的局部空间。因为b可能不是a的直接子物体，例如a/c/b
                 meshOrder.matrix = worldToLocalMatrix * image.transform.localToWorldMatrix;
                 meshOrder.z = image.transform.localPosition.z;
 
                 meshes.Add(meshOrder);
-
+                //image与text 是共用一个材质球
                 if (material == null)
                 {
                     material = image.material;
@@ -139,7 +152,7 @@ namespace UnityEngine.UI
             m_meshRender.enabled = true;
 
             meshes.Sort((lhs, rhs) => rhs.z.CompareTo(lhs.z));
-
+            //合并mesh
             CombineInstance[] combine = new CombineInstance[meshes.Count];
             for (int i = 0; i < meshes.Count; ++i)
             {
@@ -152,6 +165,8 @@ namespace UnityEngine.UI
             m_mesh.CombineMeshes(combine, true);
             m_meshFilter.sharedMesh = m_mesh;
             m_meshRender.sharedMaterial = material;
+
+            ChangeZTest();
         }
 
         protected void OnEnable()
@@ -169,6 +184,27 @@ namespace UnityEngine.UI
             }
         }
 
+
+        public void ChangeZTest()
+        {
+            bool isMajor = m_isMajor;
+            string propertyName = "_Ztest";
+            int ztestID = Shader.PropertyToID(propertyName);
+            var prop = new MaterialPropertyBlock();
+            var render = m_meshRender;
+            render.GetPropertyBlock(prop);
+
+            //只能设置深度
+            if (isMajor == true)
+            {
+                prop.SetInt(ztestID, (int)UnityEngine.Rendering.CompareFunction.Always);
+            }
+            else
+            {
+                prop.SetInt(ztestID, (int)UnityEngine.Rendering.CompareFunction.LessEqual);
+            }
+            render.SetPropertyBlock(prop);
+        }
     }
 
 }

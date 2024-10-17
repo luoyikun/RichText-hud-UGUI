@@ -25,7 +25,7 @@ namespace UnityEngine.UI
             m_FontData = serializedObject.FindProperty("m_FontData");
             m_AtlasTexture = serializedObject.FindProperty("m_AtlasTexture");
             m_UiMode = serializedObject.FindProperty("m_UiMode");
-
+            m_isMajor = serializedObject.FindProperty("m_isMajor");
             m_lpfnParseText = System.Delegate.CreateDelegate(typeof(Action), serializedObject.targetObject, "parseText") as Action;
 
             EditorApplication.update += CheckText;
@@ -72,7 +72,7 @@ namespace UnityEngine.UI
                 }
             }
             EditorGUILayout.PropertyField(m_UiMode);
-
+            EditorGUILayout.PropertyField(m_isMajor);
             AppearanceControlsGUI();
             RaycastControlsGUI();
             serializedObject.ApplyModifiedProperties();
@@ -82,7 +82,7 @@ namespace UnityEngine.UI
         private SerializedProperty m_FontData;
         private SerializedProperty m_AtlasTexture;
         private SerializedProperty m_UiMode;
-
+        private SerializedProperty m_isMajor;
         private string m_lastTextString;
         private Action m_lpfnParseText;
 
