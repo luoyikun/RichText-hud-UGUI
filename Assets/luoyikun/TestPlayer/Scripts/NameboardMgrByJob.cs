@@ -13,7 +13,7 @@ using UnityEngine.UI;
 /// <summary>
 /// 控制所有名字板的位置，角度，缩放
 /// </summary>
-public class NameboardMgr : SingletonMono<NameboardMgr>
+public class NameboardMgrByJob : SingletonMono<NameboardMgrByJob>
 {
 
     //使用NativeList，一定要记得Dispose
@@ -112,24 +112,61 @@ public class NameboardMgr : SingletonMono<NameboardMgr>
     }
     public void AddNameboard(Actor actor,Nameboard nameboard)
     {
-        m_listActorTransform.Add(actor.transform);
-        m_listNameboard.Add(nameboard);
+        if (m_JobComplete)
+        {
+            //任务完成可以加参数
+            if (m_dicActorIDIdx.ContainsKey(actor.m_id) == false)
+            {
+                m_dicActorIDIdx[actor.m_id] = m_nameboardJobIdx;
+
+                m_NameBoardItemStructNativeList.Add(CreateNameboardStruct(actor, nameboard));
+                m_listActorTransform.Add(actor.transform);
+                m_listNameboard.Add(nameboard);
+                m_Position.Add(default);
+                m_Rotation.Add(default);
+                m_Scale.Add(default);
+                m_nameboardJobIdx++;
+            }
+        }
+        else
+        {
+            //job正在执行，加入到缓存中，等job执行完毕再加入
+            ToDoNameboard todo = new ToDoNameboard();
+            todo.actor = actor;
+            todo.nameboard = nameboard;
+            todo.opType = NameboardToDoOpTyp.Add;
+            m_listToDoNameboard.Add(todo);
+        }
     }
 
     public void RemoveNameboard(Actor actor,Nameboard nameboard)
     {
-        //任务完成可以加参数，采用尾替换移除
-        int idx = -1;
-        if (m_dicActorIDIdx.TryGetValue(actor.m_id, out idx) == true)
+        if (m_JobComplete)
         {
-            m_listActorTransform.RemoveAtSwapBack(idx);
-            m_listNameboard.RemoveAtSwapBack(idx);
-            m_dicActorIDIdx.Remove(actor.m_id);
-            //交换尾部
+            //任务完成可以加参数，采用尾替换移除
+            int idx = -1;
+            if (m_dicActorIDIdx.TryGetValue(actor.m_id,out idx) == true)
+            {
+                m_NameBoardItemStructNativeList.RemoveAtSwapBack(idx);
+                m_listActorTransform.RemoveAtSwapBack(idx);
+                m_listNameboard.RemoveAtSwapBack(idx);
+                m_Position.RemoveAtSwapBack(idx);
+                m_Rotation.RemoveAtSwapBack(idx);
+                m_Scale.RemoveAtSwapBack(idx);
+                m_dicActorIDIdx.Remove(actor.m_id);
+                m_nameboardJobIdx--;
+            }
 
-            m_nameboardJobIdx--;
         }
-
+        else
+        {
+            //job正在执行，加入到缓存中，等job执行完毕再移除
+            ToDoNameboard todo = new ToDoNameboard();
+            todo.actor = actor;
+            todo.nameboard = nameboard;
+            todo.opType = NameboardToDoOpTyp.Remove;
+            m_listToDoNameboard.Add(todo);
+        }
     }
     public NameBoardItemStruct CreateNameboardStruct( Actor actor,Nameboard nameboard)
     {
@@ -161,4 +198,85 @@ public class NameboardMgr : SingletonMono<NameboardMgr>
         JobHandle.ScheduleBatchedJobs();
     }
 }
+
+//结构体里只能值类型传递进入NativeList，否则报错ArgumentException: NameBoardItemStruct used in native collection is not blittable, not primitive, or contains a type tagged as NativeContainer
+public struct NameBoardItemStruct
+{
+    public Vector3 posActor;
+   
+}
+
+//IJobParallelFor 计算数据,最好是取数据计算，最后把数据计算结果返回
+//IJobParallelForTransform 直接操作Transform
+[BurstCompile]
+struct UpdateNameBoardPositionJob : IJobParallelFor
+{
+    [WriteOnly]
+    private NativeList<Vector3> Position;
+    [WriteOnly]
+    private NativeList<Vector3> Rotation;
+    [WriteOnly]
+    private NativeList<float> Scale;
+
+    Vector3 posCamera; //摄像机位置
+    Vector3 cameraForward; //摄像机方向
+    NativeList<NameBoardItemStruct> NameBoardItemStructNativeList; //需要处理的名字板信息
+    public UpdateNameBoardPositionJob(NativeList<Vector3> pPosition, NativeList<Vector3> pRotation, NativeList<float> pScale,
+        Vector3 pPosCamera,NativeList<NameBoardItemStruct> pNameBoardItemStructNativeList,Vector3 pCameraForward
+        )
+    {
+        Position = pPosition;
+        Rotation = pRotation;
+        Scale = pScale;
+        posCamera = pPosCamera;
+        NameBoardItemStructNativeList = pNameBoardItemStructNativeList;
+        cameraForward = pCameraForward;
+    }
+
+    // 
+    public void Execute(int idx)
+    {
+        var nameBoardData = NameBoardItemStructNativeList[idx];
+        //名字板高度
+        Vector3 posActor = nameBoardData.posActor;
+        posActor.y += 2; 
+        Position[idx] = posActor;
+
+        //名字板方向
+        Rotation[idx] = cameraForward;
+
+        //名字板的缩放
+        float disCamera = Vector3.Distance(posCamera, posActor);
+        float maxDis = 10;//超过多远，名字板scale 为0
+        float minScale = 0.3f; //名字板最小scale，过小scale 也没意义
+        if (disCamera >= maxDis)
+        {
+            Scale[idx] = 0;
+        }
+        else if (disCamera >= 0 && disCamera <= maxDis * 0.3)
+        {
+            Scale[idx] = 1;
+        }
+        else
+        {
+            float disScale = (1 - disCamera / maxDis);
+            disScale = Mathf.Max(disScale, minScale);
+            Scale[idx] = disScale;
+        }
+    }
+}
+
+public enum NameboardToDoOpTyp
+{
+    Add,
+    Remove
+}
+
+public class ToDoNameboard
+{
+    public Actor actor;
+    public Nameboard nameboard;
+    public NameboardToDoOpTyp opType;
+}
+
 

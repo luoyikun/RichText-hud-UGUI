@@ -1,4 +1,5 @@
-
+//文本描边，图文可共用Shader
+//文本描边https://www.jianshu.com/p/54e6355dc619
 Shader "UI/RichText"
 {
     Properties
@@ -97,7 +98,8 @@ Shader "UI/RichText"
                 return tex2D(_MainTex, dirPos).a;
             };
 
-            //
+            //计算每个像素周围的alpha值，以确定描边的强度。
+			//这个函数实际上检查了当前像素周围的9个像素点（包括自身），并根据这些点的alpha值来计算一个混合alpha值。
             float mixAlpha(float2 xy)
             {
                 float a = 0;
@@ -118,6 +120,7 @@ Shader "UI/RichText"
 
 
             //两个颜色叠加, 参考lerp
+			//将描边颜色与原始文本颜色混合。这个混合过程考虑了两个颜色的alpha值，以创建平滑的过渡效果。
             fixed4 blendColor(fixed4 colorBottom, fixed4 colorTop)
             {
                 float a = colorTop.a + colorBottom.a * (1 - colorTop.a);
@@ -167,6 +170,7 @@ Shader "UI/RichText"
 					// 推算边框的alpha值，为了让描边的外边缘平滑
 					outlineCol.a = mixAlpha(i.uv0) * _OutlineColor.a * outlineCol.a;
 					col = blendColor(outlineCol, col);
+					//裁剪掉alpha值低于某个阈值的像素，这有助于去除描边内部的像素，使描边看起来更平滑。
 					clip(col.a - 0.001);
 				
 					col += i.uv1.y * i.color * tex2D(_SpriteTex, i.uv0);

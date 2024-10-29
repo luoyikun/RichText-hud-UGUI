@@ -36,12 +36,12 @@ public class Actor : MonoBehaviour
             m_nameboard.SetIsMajor(false);
         }
         m_nameboard.gameObject.SetActive(true);
-        NameboardMgr.Instance.AddNameboard(this, this.m_nameboard);
+        NameboardMgrByJob.Instance.AddNameboard(this, this.m_nameboard);
     }
 
     private void OnDisable()
     {
         m_nameboard.gameObject.SetActive(false);
-        NameboardMgr.Instance.RemoveNameboard(this, this.m_nameboard);
+        NameboardMgrByJob.Instance.RemoveNameboard(this, this.m_nameboard);
     }
 }
